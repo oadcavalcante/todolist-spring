@@ -2,32 +2,56 @@ package com.oadcavalcante.todolist.todolist_spring.service;
 
 import com.oadcavalcante.todolist.todolist_spring.entity.Todo;
 import com.oadcavalcante.todolist.todolist_spring.repository.TodoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.coyote.BadRequestException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class TodoService {
-    @Autowired
     private TodoRepository todoRepository;
 
-    public List<Todo> create(Todo todo){
+    public TodoService(TodoRepository todoRepository) {
+        this.todoRepository = todoRepository;
+    }
+
+    public List<Todo> list() {
+        Sort sort = Sort.by(Sort.Direction.DESC, "prioridade")
+                .and(Sort.by(Sort.Direction.ASC, "id"));
+
+        return todoRepository.findAll(sort);
+    }
+
+    public List<Todo> create(Todo todo) {
         todoRepository.save(todo);
         return list();
     }
 
-    public List<Todo> list(){
-        return todoRepository.findAll();
-    }
+    public List<Todo> update(Long id, Todo todo) {
+        todoRepository.findById(id).ifPresentOrElse((existingTodo) -> {
+            todo.setId(id);
+            todoRepository.save(todo);
+        }, () -> {
+            try {
+                throw new BadRequestException("Todo %d não existe! ".formatted(id));
+            } catch (BadRequestException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
-    public List<Todo> update(Todo todo){
-        todoRepository.save(todo);
         return list();
+
     }
 
-    public List<Todo> delete(Long id){
-        todoRepository.deleteById(id);
+    public List<Todo> delete(Long id) {
+        todoRepository.findById(id).ifPresentOrElse((existingTodo) -> todoRepository.delete(existingTodo), () -> {
+            try {
+                throw new BadRequestException("Todo %d não existe! ".formatted(id));
+            } catch (BadRequestException e) {
+                throw new RuntimeException(e);
+            }
+        });
         return list();
     }
 }
